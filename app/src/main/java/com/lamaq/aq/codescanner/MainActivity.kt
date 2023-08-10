@@ -1,14 +1,24 @@
 package com.lamaq.aq.codescanner
 
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -49,7 +60,7 @@ class MainActivity : ComponentActivity() {
                 val snackbarHostState = remember { SnackbarHostState() }
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = MaterialTheme.colorScheme.primary,
                 ) {
                     val options = GmsBarcodeScannerOptions.Builder()
                         .setBarcodeFormats(
@@ -60,49 +71,151 @@ class MainActivity : ComponentActivity() {
                         .build()
                     val scanner = GmsBarcodeScanning.getClient(this, options)
                     var rawValue by remember {
-                        mutableStateOf("")
+                        mutableStateOf("Raw Value will be shown here...")
                     }
                     Scaffold(
                         snackbarHost = {
-                            SnackbarHost(hostState = snackbarHostState)
+                            SnackbarHost(hostState = snackbarHostState){
+                                Snackbar(
+                                    snackbarData = it,
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
                         },
+                        modifier = Modifier.fillMaxSize(),
                         content = {
-                            OutlinedCard(
-                                modifier = Modifier.fillMaxWidth().blur(4.dp),
-                                onClick = {
-                                    Toast.makeText(
-                                        this,
-                                        "Click on the button to scan the code",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                },
-                                elevation = CardDefaults.cardElevation(4.dp),
-                                shape = MaterialTheme.shapes.medium,
-
-                                ) {
-                                Column(
-                                    modifier = Modifier.fillMaxSize(),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center,
-                                ) {
-                                    Text(text = rawValue)
-                                    ElevatedButton(onClick = {
-                                        scanner.startScan()
-                                            .addOnSuccessListener { barcode ->
-                                                rawValue = barcode.rawValue.toString()
-                                            }
-                                            .addOnCanceledListener {
-                                                scope.launch {
-                                                    snackbarHostState.showSnackbar("Task Cancelled")
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                            ) {
+                                OutlinedCard(
+                                    modifier = Modifier
+                                        .width(300.dp)
+                                        .height(400.dp),
+                                    elevation = CardDefaults.cardElevation(4.dp),
+                                    shape = MaterialTheme.shapes.medium,
+                                    colors = CardDefaults.outlinedCardColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    ),
+                                    border = BorderStroke(
+                                        width = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    ),
+                                    ) {
+                                    Column(
+                                        modifier = Modifier.fillMaxSize(),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center,
+                                    ) {
+                                        Box(modifier = Modifier
+                                            .fillMaxWidth()
+                                            .wrapContentHeight()
+                                            .align(Alignment.CenterHorizontally)
+                                        ) {
+                                            Text(
+                                                text = rawValue,
+                                                modifier = Modifier
+                                                    .align(Alignment.Center)
+                                                    .selectable(
+                                                        selected = true,
+                                                        onClick = {
+                                                            Toast.makeText(
+                                                                this@MainActivity,
+                                                                "Copied to Clipboard",
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                    ),
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(50.dp))
+                                        ElevatedButton(
+                                            modifier = Modifier
+                                                .align(Alignment.CenterHorizontally),
+                                            onClick = {
+                                            scanner
+                                                .startScan()
+                                                .addOnSuccessListener { barcode ->
+                                                    rawValue = barcode.rawValue.toString()
+                                                    if (rawValue == "null") {
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("No Barcode Found")
+                                                        }
+                                                    }else if (rawValue.contains("http")) {
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Opening URL")
+                                                        }
+                                                        startActivity(
+                                                            Intent(
+                                                                Intent.ACTION_VIEW,
+                                                                Uri.parse(rawValue)
+                                                            )
+                                                        )
+                                                    }else if (rawValue.contains("mailto")) {
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Opening Email")
+                                                        }
+                                                        startActivity(
+                                                            Intent(
+                                                                Intent.ACTION_VIEW,
+                                                                Uri.parse(rawValue)
+                                                            )
+                                                        )
+                                                    }else if (rawValue.contains("tel")) {
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Opening Dialer")
+                                                        }
+                                                        startActivity(
+                                                            Intent(
+                                                                Intent.ACTION_VIEW,
+                                                                Uri.parse(rawValue)
+                                                            )
+                                                        )
+                                                    } else {
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Barcode Found")
+                                                        }
+                                                    }
                                                 }
-                                            }
-                                            .addOnFailureListener { e ->
-                                                scope.launch {
-                                                    snackbarHostState.showSnackbar("Task Failed")
+                                                .addOnCanceledListener {
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("Task Cancelled")
+                                                    }
                                                 }
-                                            }
-                                    }) {
-                                        Text(text = "Scan Code")
+                                                .addOnFailureListener { e ->
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("Task Failed")
+                                                    }
+                                                }
+                                        }) {
+                                            Text(
+                                                text = "Scan Code",
+                                                textAlign = TextAlign.Center,
+                                                style = MaterialTheme.typography.bodyLarge
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(15.dp))
+                                        ElevatedButton(
+                                            modifier = Modifier
+                                                .align(Alignment.CenterHorizontally),
+                                            onClick = {
+                                                rawValue = "Feature Coming Soon..."
+                                            }) {
+                                            Text(
+                                                text = "Generate Code",
+                                                textAlign = TextAlign.Center,
+                                                style = MaterialTheme.typography.bodyLarge
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(50.dp))
+                                        Text(
+                                            text = "Powered By Google ML Kit",
+                                            textAlign = TextAlign.Center,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
                                     }
                                 }
                             }
