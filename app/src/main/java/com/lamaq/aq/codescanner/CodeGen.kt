@@ -137,7 +137,6 @@ class CodeGen : ComponentActivity() {
                                     modifier = Modifier
                                         .align(Alignment.CenterVertically)
                                         .padding(10.dp)
-
                                 )
                                 Box(
                                     modifier = Modifier
